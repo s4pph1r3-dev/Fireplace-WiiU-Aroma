@@ -54,6 +54,8 @@ static uint32_t framebuf[WIDTH * HEIGHT];
 int main()
 {
 	SDL_Init(SDL_INIT_EVERYTHING);
+
+	WHBProcInit();
 	
 	int i;
 	uint32_t sum;
@@ -130,6 +132,8 @@ int main()
 	SDL_DestroyWindow(window);
 
 	SDL_Quit();
+
+	WHBProcShutdown();
 
 	return 0;
 }
