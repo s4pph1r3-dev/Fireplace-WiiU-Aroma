@@ -19,6 +19,12 @@ TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	src
 INCLUDES	:=	
+NAME		:=	Fireplace
+SHORTNAME	:=	Fireplace
+AUTHOR		:=	Marice, rw-r-r-0644, S4PPH1R3
+ICON		:=  meta/icon.png
+TV_SPLASH	:=  meta/TV.png
+DRC_SPLASH	:=  meta/DRC.png
 
 #-------------------------------------------------------------------------------
 # options for code generation
@@ -82,6 +88,50 @@ export INCLUDE		:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS		:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
+ifneq (,$(strip $(NAME)))
+	export APP_NAME := $(strip $(NAME))
+else
+	export APP_NAME := $(TARGET)
+endif
+
+ifneq (,$(strip $(SHORTNAME)))
+	export APP_SHORTNAME := $(strip $(SHORTNAME))
+else
+	export APP_SHORTNAME := $(TARGET)
+endif
+
+ifneq (,$(strip $(AUTHOR)))
+	export APP_AUTHOR := $(strip $(AUTHOR))
+endif
+
+ifneq (,$(strip $(CONTENT)))
+	export APP_CONTENT := $(TOPDIR)/$(CONTENT)
+endif
+
+ifneq (,$(strip $(ICON)))
+	export APP_ICON := $(TOPDIR)/$(ICON)
+else ifneq (,$(wildcard $(TOPDIR)/$(TARGET).png))
+	export APP_ICON := $(TOPDIR)/$(TARGET).png
+else ifneq (,$(wildcard $(TOPDIR)/icon.png))
+	export APP_ICON := $(TOPDIR)/icon.png
+endif
+
+ifneq (,$(strip $(TV_SPLASH)))
+	export APP_TV_SPLASH := $(TOPDIR)/$(TV_SPLASH)
+else ifneq (,$(wildcard $(TOPDIR)/tv-splash.png))
+	export APP_TV_SPLASH := $(TOPDIR)/tv-splash.png
+else ifneq (,$(wildcard $(TOPDIR)/splash.png))
+	export APP_TV_SPLASH := $(TOPDIR)/splash.png
+endif
+
+ifneq (,$(strip $(DRC_SPLASH)))
+	export APP_DRC_SPLASH := $(TOPDIR)/$(DRC_SPLASH)
+else ifneq (,$(wildcard $(TOPDIR)/drc-splash.png))
+	export APP_DRC_SPLASH := $(TOPDIR)/drc-splash.png
+else ifneq (,$(wildcard $(TOPDIR)/splash.png))
+	export APP_DRC_SPLASH := $(TOPDIR)/splash.png
+endif
+
 .PHONY: $(BUILD) clean all
 
 #-------------------------------------------------------------------------------
@@ -108,9 +158,7 @@ DEPENDS		:=	$(OFILES:.o=.d)
 all	:	$(OUTPUT).wuhb
 
 $(OUTPUT).wuhb	:	$(OUTPUT).rpx
-
 $(OUTPUT).rpx	:	$(OUTPUT).elf
-
 $(OUTPUT).elf	:	$(OFILES)
 
 -include $(DEPENDS)
