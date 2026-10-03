@@ -6,8 +6,8 @@
 
 #include <whb/proc.h>
 
-#define WIDTH 128
-#define HEIGHT 72
+#define WIDTH 256
+#define HEIGHT 48
 #define WIN_WIDTH 1280
 #define WIN_HEIGHT 720
 #define FPS 60
@@ -51,48 +51,71 @@ static uint8_t fire[WIDTH * HEIGHT];
 static uint8_t prev_fire[WIDTH * HEIGHT];
 static uint32_t framebuf[WIDTH * HEIGHT];
 
-int main()
-{
-	SDL_Init(SDL_INIT_EVERYTHING);
+SDL_Window* window;
+SDL_Renderer* renderer;
+SDL_Texture * texture;
 
-	WHBProcInit();
+bool _isRunning = true;
+
+
+void close(){
+	SDL_DestroyTexture(texture);
+	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(window);
+
+	SDL_Quit();
+}
+
+int averageFire(int i, int layer){
+	int sum = 0;
+	for(int j = 1; j <= layer; j++){
+		sum += prev_fire[i - (WIDTH*j) - j] +
+			prev_fire[i - (WIDTH*j)    ] +
+			prev_fire[i - (WIDTH*j) + j] +
+			prev_fire[i - j] +
+			prev_fire[i + j] +
+			prev_fire[i + (WIDTH*j) - j] +
+			prev_fire[i + (WIDTH*j)    ] +
+			prev_fire[i + (WIDTH*j) + j];
+	}
+	return sum;
+}
+
+int main(int argc, char** argv)
+{
+	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
 	
 	int i;
 	uint32_t sum;
 	uint8_t avg;
    
 	//Setup window
-	SDL_Window* window = SDL_CreateWindow(nullptr, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP);
+	window = SDL_CreateWindow(nullptr, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIN_WIDTH, WIN_HEIGHT, SDL_WINDOW_SHOWN);
 	if (!window) { SDL_Quit(); }
 	
 	//Setup renderer
-	SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+	if (!renderer) {
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    }
 	if (!renderer) { SDL_Quit(); }
 
-	SDL_Texture * texture  = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 	if (texture == NULL) {
 			fprintf(stderr, "Failed CreateTexture: %s\n", SDL_GetError());
 			return 1;
 	}
 
-	while(WHBProcIsRunning())
+	while(_isRunning)
 	{			
 			for (i = WIDTH + 1; i < (HEIGHT - 1) * WIDTH - 1; i++) {
-					/* Average the eight neighbours. */
-					sum = prev_fire[i - WIDTH - 1] +
-						  prev_fire[i - WIDTH    ] +
-						  prev_fire[i - WIDTH + 1] +
-						  prev_fire[i - 1] +
-						  prev_fire[i + 1] +
-						  prev_fire[i + WIDTH - 1] +
-						  prev_fire[i + WIDTH    ] +
-						  prev_fire[i + WIDTH + 1];
+			 		sum = averageFire(i, 1);
 					avg = (uint8_t)(sum / 8);
 
 					/* "Cool" the pixel if the two bottom bits of the
 					   sum are clear (somewhat random). For the bottom
 					   rows, cooling can overflow, causing "sparks". */
-					if (!(sum & 3) &&
+					if (!(sum & 2) &&
 						(avg > 0 || i >= (HEIGHT - 4) * WIDTH)) {
 							avg--;
 					}
@@ -118,22 +141,46 @@ int main()
 					framebuf[i] = palette[fire[i + WIDTH]];
 			}
 
+			SDL_Event e;
+			while(SDL_PollEvent(&e)) {
+                switch (e.type) {
+                    case SDL_QUIT: {
+                        _isRunning = false;
+                        cout << "Quitting!" << endl;
+                        break;
+                    }
+					case SDL_JOYDEVICEADDED: {
+                    	// SDL won't deliver button events from a joystick until
+                    	// someone opens it. Pattern from fortheusers/chesto.
+                    	SDL_Joystick* j = SDL_JoystickOpen(e.jdevice.which);
+                    	break;
+					}
+					case SDL_JOYDEVICEREMOVED: {
+						SDL_Joystick* j = SDL_JoystickFromInstanceID(e.jdevice.which);
+						if (j) {
+							SDL_JoystickClose(j);
+						}
+						break;
+					}
+					default:
+                        break;
+				}
+			}
+
 			/* Update the texture and render it. */
 			SDL_UpdateTexture(texture, NULL, framebuf, WIDTH * sizeof(framebuf[0]));
 			SDL_RenderClear(renderer);
 			SDL_RenderCopy(renderer, texture, NULL, NULL);
+			
+			SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+            SDL_RenderDrawPoint(renderer, 0, 0);
 			SDL_RenderPresent(renderer);
 
 			SDL_Delay(1000 / FPS);
+			
 	}
 
-	SDL_DestroyTexture(texture);
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
-
-	SDL_Quit();
-
-	WHBProcShutdown();
+	close();
 
 	return 0;
 }
